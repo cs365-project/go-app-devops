@@ -96,9 +96,7 @@ jobs:
             })
 
       - name: Terraform Apply
-        if: |
-          github.event.inputs.action == 'apply' ||
-          (github.ref == 'refs/heads/main' && github.event_name == 'push')
+        if: github.event.inputs.action == 'apply'
         run: terraform apply -var-file=dev.tfvars -auto-approve
 
       - name: Terraform Destroy
