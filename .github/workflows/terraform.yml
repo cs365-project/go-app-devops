@@ -29,7 +29,6 @@ env:
   TF_WORKING_DIR: terraform/eks
 
 permissions:
-  id-token: write
   contents: read
   pull-requests: write
 
