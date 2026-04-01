@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: go-portfolio
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/cs365-project/go-app-devops
+    targetRevision: main
+    path: charts
+    helm:
+      valueFiles:
+        - values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: go-app
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
