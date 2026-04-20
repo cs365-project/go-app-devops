@@ -17,7 +17,7 @@ ingress:
   className: nginx
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
-  host: go-portfolio.local
+  host: ""
   path: /
   pathType: Prefix
 
