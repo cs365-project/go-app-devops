@@ -8,3 +8,6 @@ node_instance_type = "t3.medium"
 desired_capacity   = 2
 min_capacity       = 1
 max_capacity       = 3
+
+is_eks_role_enabled          = true
+is_eks_nodegroup_role_enabled = true
