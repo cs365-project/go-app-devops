@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/cs365-project/go-app-devops
-    targetRevision: main
+    targetRevision: develop
     path: charts
     helm:
       valueFiles:
