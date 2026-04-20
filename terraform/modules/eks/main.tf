@@ -1,10 +1,19 @@
 # Use pre-existing LabEksClusterRole (Learner Lab restriction: cannot create IAM roles)
+# Role names in Learner Lab have a generated prefix, so we look them up by path/tag filter
+data "aws_iam_roles" "cluster" {
+  name_regex = ".*LabEksClusterRole.*"
+}
+
+data "aws_iam_roles" "nodes" {
+  name_regex = ".*LabEksNodeRole.*"
+}
+
 data "aws_iam_role" "cluster" {
-  name = "LabEksClusterRole"
+  name = tolist(data.aws_iam_roles.cluster.names)[0]
 }
 
 data "aws_iam_role" "nodes" {
-  name = "LabEksNodeRole"
+  name = tolist(data.aws_iam_roles.nodes.names)[0]
 }
 
 resource "aws_eks_cluster" "main" {
@@ -47,13 +56,4 @@ resource "aws_eks_node_group" "main" {
   }
 }
 
-# OIDC Provider for IRSA (IAM Roles for Service Accounts)
-data "tls_certificate" "eks" {
-  url = aws_eks_cluster.main.identity[0].oidc[0].issuer
-}
-
-resource "aws_iam_openid_connect_provider" "eks" {
-  client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = [data.tls_certificate.eks.certificates[0].sha1_fingerprint]
-  url             = aws_eks_cluster.main.identity[0].oidc[0].issuer
-}
+# OIDC Provider removed — Learner Lab does not allow iam:CreateOpenIDConnectProvider
