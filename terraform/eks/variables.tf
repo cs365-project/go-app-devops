@@ -56,3 +56,15 @@ variable "max_capacity" {
   type        = number
   default     = 3
 }
+
+variable "is_eks_role_enabled" {
+  description = "Flag to indicate pre-existing EKS cluster IAM role is used"
+  type        = bool
+  default     = true
+}
+
+variable "is_eks_nodegroup_role_enabled" {
+  description = "Flag to indicate pre-existing EKS node group IAM role is used"
+  type        = bool
+  default     = true
+}
