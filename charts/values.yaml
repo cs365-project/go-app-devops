@@ -2,7 +2,7 @@ replicaCount: 2
 
 image:
   repository: 6609650079/go-port
-  tag: "25515544202"
+  tag: "25516202892"
   pullPolicy: Always
 
 namespace: go-app
