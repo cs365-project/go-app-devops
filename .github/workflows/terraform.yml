@@ -167,9 +167,35 @@ jobs:
       - name: Apply ArgoCD Application
         run: kubectl apply -f argocd/application.yaml
 
-      - name: Print ArgoCD Admin Password
+      - name: Wait for ArgoCD to Sync
         run: |
-          echo "ArgoCD initial admin password:"
+          echo "Waiting for go-portfolio to sync..."
+          for i in $(seq 1 20); do
+            SYNC=$(kubectl get application go-portfolio -n argocd \
+              -o jsonpath='{.status.sync.status}' 2>/dev/null)
+            HEALTH=$(kubectl get application go-portfolio -n argocd \
+              -o jsonpath='{.status.health.status}' 2>/dev/null)
+            echo "[$i/20] Sync: $SYNC | Health: $HEALTH"
+            if [ "$SYNC" = "Synced" ] && [ "$HEALTH" = "Healthy" ]; then
+              echo "✅ App is Synced and Healthy"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "❌ Timeout waiting for sync"
+          kubectl describe application go-portfolio -n argocd
+          exit 1
+
+      - name: Print App Status
+        if: always()
+        run: |
+          echo "=== Pods ==="
+          kubectl get pods -n go-app
+          echo "=== Service ==="
+          kubectl get svc -n go-app
+          echo "=== Ingress ==="
+          kubectl get ingress -n go-app
+          echo "=== ArgoCD Admin Password ==="
           kubectl get secret argocd-initial-admin-secret \
             -n argocd \
             -o jsonpath="{.data.password}" | base64 -d
