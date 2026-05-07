@@ -34,8 +34,11 @@ module "iam" {
 module "jump_server" {
   source = "../modules/jump-server"
 
-  cluster_name     = var.cluster_name
-  vpc_id           = module.vpc.vpc_id
-  public_subnet_id = module.vpc.public_subnet_ids[0]
-  aws_region       = var.aws_region
+  cluster_name      = var.cluster_name
+  vpc_id            = module.vpc.vpc_id
+  public_subnet_id  = module.vpc.public_subnet_ids[0]
+  aws_region        = var.aws_region
+  ssh_allowed_cidrs = var.ssh_allowed_cidrs
+
+  depends_on = [module.eks]
 }

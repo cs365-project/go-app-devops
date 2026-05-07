@@ -68,3 +68,9 @@ variable "is_eks_nodegroup_role_enabled" {
   type        = bool
   default     = true
 }
+
+variable "ssh_allowed_cidrs" {
+  description = "CIDR blocks allowed to SSH into the jump server"
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}

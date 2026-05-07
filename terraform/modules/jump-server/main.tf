@@ -1,14 +1,30 @@
+# Amazon Linux 2023 — latest AMI in the given region
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-*-x86_64"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+}
+
 resource "aws_security_group" "jump" {
   name        = "${var.cluster_name}-jump-sg"
   description = "Security group for Jump Server"
   vpc_id      = var.vpc_id
 
   ingress {
-    description = "SSH"
+    description = "SSH from allowed CIDRs only"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = var.ssh_allowed_cidrs
   }
 
   egress {
@@ -24,7 +40,7 @@ resource "aws_security_group" "jump" {
 }
 
 resource "aws_instance" "jump" {
-  ami                         = var.ami_id
+  ami                         = data.aws_ami.amazon_linux.id
   instance_type               = "t3.micro"
   subnet_id                   = var.public_subnet_id
   vpc_security_group_ids      = [aws_security_group.jump.id]

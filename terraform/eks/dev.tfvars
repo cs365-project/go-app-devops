@@ -11,3 +11,7 @@ max_capacity       = 3
 
 is_eks_role_enabled          = true
 is_eks_nodegroup_role_enabled = true
+
+# Restrict SSH access to jump server — replace with your team's actual IP(s)
+# e.g. ssh_allowed_cidrs = ["203.0.113.10/32", "198.51.100.0/24"]
+ssh_allowed_cidrs = ["0.0.0.0/0"]
