@@ -4,14 +4,3 @@
 *.tfstate.backup
 .terraform.lock.hcl
 tfplan
-
-# SSH Keys & Secrets
-*.pem
-*.key
-*.p12
-*.pfx
-.env
-.env.*
-
-# OS
-.DS_Store

@@ -20,10 +20,6 @@ ingress:
   host: ""
   path: /
   pathType: Prefix
-  tls:
-    enabled: false
-    # Set to true and provide secretName when cert-manager is configured
-    secretName: ""
 
 resources:
   requests:
