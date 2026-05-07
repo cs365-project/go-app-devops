@@ -15,11 +15,12 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: 'Terraform action (plan/apply/destroy)'
+        description: 'Terraform action (bootstrap/plan/apply/destroy)'
         required: true
         default: 'plan'
         type: choice
         options:
+          - bootstrap
           - plan
           - apply
           - destroy
@@ -33,9 +34,31 @@ permissions:
   pull-requests: write
 
 jobs:
+  bootstrap:
+    name: Bootstrap Remote State
+    runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'bootstrap'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Bootstrap S3 + DynamoDB
+        run: |
+          chmod +x bootstrap-remote-state.sh
+          ./bootstrap-remote-state.sh
+
   terraform:
     name: Terraform ${{ github.event.inputs.action || 'plan' }}
     runs-on: ubuntu-latest
+    if: github.event.inputs.action != 'bootstrap'
 
     defaults:
       run:
