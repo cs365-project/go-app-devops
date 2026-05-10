@@ -136,7 +136,7 @@ jobs:
             terraform import \
               -var-file=dev.tfvars \
               aws_security_group_rule.jump_to_eks_api \
-              "sg-0f8b1f0f7ad854976_ingress_tcp_443_443_sg-06878c16ab49c9e6c" || true
+              "$RULE_ID" || true
           else
             echo "No existing SG rule found — Terraform will create it"
           fi
