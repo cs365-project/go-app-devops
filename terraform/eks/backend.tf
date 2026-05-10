@@ -1,4 +1,15 @@
 terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.0"
+    }
+  }
+
   backend "s3" {
     bucket         = "cs365-tf-state-bucket"
     key            = "eks/terraform.tfstate"
