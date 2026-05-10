@@ -122,14 +122,22 @@ jobs:
 
       - name: Import existing SG rule (idempotent)
         if: github.event.inputs.action == 'apply'
-        working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
-          EKS_SG=$(terraform output -raw cluster_security_group_id 2>/dev/null || echo "sg-0f8b1f0f7ad854976")
-          JUMP_SG=$(terraform output -raw jump_server_sg_id 2>/dev/null || \
-            aws ec2 describe-security-groups \
-              --filters "Name=tag:Name,Values=cs365-eks-cluster-jump-sg" \
-              --query "SecurityGroups[0].GroupId" --output text --region us-east-1 2>/dev/null || true)
+          # Query EKS cluster SG dynamically from the cluster name
+          EKS_SG=$(aws eks describe-cluster \
+            --name cs365-eks-cluster --region us-east-1 \
+            --query "cluster.resourcesVpcConfig.clusterSecurityGroupId" \
+            --output text 2>/dev/null || true)
+          # Query jump server SG dynamically from the instance tag
+          JUMP_SG=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=cs365-eks-cluster-jump" "Name=instance-state-name,Values=running,stopped" \
+            --query "Reservations[0].Instances[0].SecurityGroups[0].GroupId" \
+            --output text --region us-east-1 2>/dev/null || true)
           echo "EKS SG: $EKS_SG  |  Jump SG: $JUMP_SG"
+          if [ -z "$EKS_SG" ] || [ -z "$JUMP_SG" ] || [ "$EKS_SG" = "None" ] || [ "$JUMP_SG" = "None" ]; then
+            echo "Could not resolve SG IDs — skipping import"
+            exit 0
+          fi
           RULE_ID=$(aws ec2 describe-security-group-rules \
             --filters "Name=group-id,Values=${EKS_SG}" \
                       "Name=ip-permission.from-port,Values=443" \
@@ -139,7 +147,8 @@ jobs:
             --output text --region us-east-1 2>/dev/null || true)
           echo "Found rule ID: $RULE_ID"
           if [ -n "$RULE_ID" ] && [ "$RULE_ID" != "None" ]; then
-            echo "Importing $RULE_ID into aws_vpc_security_group_ingress_rule.jump_to_eks_api"
+            echo "Importing $RULE_ID into state"
+            cd ${{ env.TF_WORKING_DIR }}
             terraform import \
               -var-file=dev.tfvars \
               aws_vpc_security_group_ingress_rule.jump_to_eks_api \
