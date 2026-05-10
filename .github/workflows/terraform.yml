@@ -32,6 +32,7 @@ env:
 permissions:
   contents: read
   pull-requests: write
+  repository-projects: write
 
 jobs:
   bootstrap:
@@ -271,3 +272,10 @@ jobs:
             -n argocd \
             -o jsonpath="{.data.password}" | base64 -d
           echo ""
+          if [ -n "$LB" ]; then
+            gh api -X PATCH /repos/${{ github.repository }} \
+              -f homepage="http://$LB" || true
+            echo "GitHub repo homepage updated to http://$LB"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
