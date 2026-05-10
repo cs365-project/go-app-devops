@@ -57,3 +57,4 @@ resource "aws_eks_node_group" "main" {
 }
 
 # OIDC Provider removed — Learner Lab does not allow iam:CreateOpenIDConnectProvider
+

@@ -2,6 +2,7 @@ provider "aws" {
   region = var.aws_region
 }
 
+
 module "vpc" {
   source = "../modules/vpc"
 
@@ -42,3 +43,7 @@ module "jump_server" {
 
   depends_on = [module.eks]
 }
+
+# SG rule (jump -> EKS API :443) is managed via workflow script
+# to avoid duplicate-rule errors when the rule was pre-created manually.
+

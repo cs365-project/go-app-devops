@@ -29,3 +29,4 @@ variable "min_capacity" {
 variable "max_capacity" {
   type = number
 }
+

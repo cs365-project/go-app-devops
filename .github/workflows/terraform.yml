@@ -90,7 +90,7 @@ jobs:
 
       - name: Terraform Init
         id: init
-        run: terraform init
+        run: terraform init -upgrade
 
       - name: Terraform Validate
         id: validate
@@ -119,6 +119,34 @@ jobs:
               repo: context.repo.repo,
               body: output
             })
+
+      - name: Ensure SG rule (jump -> EKS API :443)
+        if: github.event.inputs.action == 'apply'
+        run: |
+          EKS_SG=$(aws eks describe-cluster \
+            --name cs365-eks-cluster --region us-east-1 \
+            --query "cluster.resourcesVpcConfig.clusterSecurityGroupId" \
+            --output text)
+          JUMP_SG=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=cs365-eks-cluster-jump-server" \
+                      "Name=instance-state-name,Values=running,stopped" \
+            --query "Reservations[0].Instances[0].SecurityGroups[0].GroupId" \
+            --output text --region us-east-1)
+          echo "EKS SG: $EKS_SG  |  Jump SG: $JUMP_SG"
+          RULE_ID=$(aws ec2 describe-security-group-rules \
+            --filters "Name=group-id,Values=${EKS_SG}" \
+            --query "SecurityGroupRules[?FromPort==\`443\` && ToPort==\`443\` && IpProtocol=='tcp' && ReferencedGroupInfo.GroupId=='${JUMP_SG}' && IsEgress==\`false\`].SecurityGroupRuleId" \
+            --output text --region us-east-1 2>/dev/null || true)
+          echo "Found rule ID: '$RULE_ID'"
+          if [ -n "$RULE_ID" ] && [ "$RULE_ID" != "None" ]; then
+            echo "SG rule already exists ($RULE_ID) — nothing to do"
+          else
+            echo "Creating SG rule: $JUMP_SG -> $EKS_SG :443"
+            aws ec2 authorize-security-group-ingress \
+              --group-id "$EKS_SG" \
+              --ip-permissions "[{\"IpProtocol\":\"tcp\",\"FromPort\":443,\"ToPort\":443,\"UserIdGroupPairs\":[{\"GroupId\":\"${JUMP_SG}\",\"Description\":\"Allow jump server to access EKS API\"}]}]" \
+              --region us-east-1
+          fi
 
       - name: Terraform Apply
         id: apply
@@ -158,6 +186,26 @@ jobs:
           aws eks update-kubeconfig \
             --region ${{ env.AWS_REGION }} \
             --name cs365-eks-cluster
+
+      - name: Patch aws-auth (add LabRole as cluster-admin)
+        run: |
+          LAB_ROLE_ARN=$(aws iam get-role --role-name LabRole --query "Role.Arn" --output text)
+          NODE_ROLE_ARN=$(aws iam list-roles --query "Roles[?contains(RoleName, 'LabEksNodeRole')].Arn | [0]" --output text)
+          kubectl patch configmap aws-auth -n kube-system --patch "$(cat <<EOF
+          data:
+            mapRoles: |
+              - rolearn: ${NODE_ROLE_ARN}
+                username: system:node:{{EC2PrivateDNSName}}
+                groups:
+                  - system:bootstrappers
+                  - system:nodes
+              - rolearn: ${LAB_ROLE_ARN}
+                username: admin
+                groups:
+                  - system:masters
+          EOF
+          )"
+          echo "aws-auth patched with LabRole: ${LAB_ROLE_ARN}"
 
       - name: Install Nginx Ingress Controller
         run: |
