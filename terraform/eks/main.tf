@@ -44,16 +44,6 @@ module "jump_server" {
   depends_on = [module.eks]
 }
 
-# Allow jump server to reach EKS API server (port 443)
-# Defined here at root level to avoid circular dependency between eks and jump_server modules
-resource "aws_vpc_security_group_ingress_rule" "jump_to_eks_api" {
-  ip_protocol                  = "tcp"
-  from_port                    = 443
-  to_port                      = 443
-  referenced_security_group_id = module.jump_server.security_group_id
-  security_group_id            = module.eks.cluster_security_group_id
-  description                  = "Allow jump server to access EKS API"
-
-  depends_on = [module.eks, module.jump_server]
-}
+# SG rule (jump -> EKS API :443) is managed via workflow script
+# to avoid duplicate-rule errors when the rule was pre-created manually.
 

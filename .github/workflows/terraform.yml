@@ -120,24 +120,19 @@ jobs:
               body: output
             })
 
-      - name: Import existing SG rule (idempotent)
+      - name: Ensure SG rule (jump -> EKS API :443)
         if: github.event.inputs.action == 'apply'
         run: |
-          # Query EKS cluster SG dynamically from the cluster name
           EKS_SG=$(aws eks describe-cluster \
             --name cs365-eks-cluster --region us-east-1 \
             --query "cluster.resourcesVpcConfig.clusterSecurityGroupId" \
-            --output text 2>/dev/null || true)
-          # Query jump server SG dynamically from the instance tag
+            --output text)
           JUMP_SG=$(aws ec2 describe-instances \
-            --filters "Name=tag:Name,Values=cs365-eks-cluster-jump" "Name=instance-state-name,Values=running,stopped" \
+            --filters "Name=tag:Name,Values=cs365-eks-cluster-jump" \
+                      "Name=instance-state-name,Values=running,stopped" \
             --query "Reservations[0].Instances[0].SecurityGroups[0].GroupId" \
-            --output text --region us-east-1 2>/dev/null || true)
+            --output text --region us-east-1)
           echo "EKS SG: $EKS_SG  |  Jump SG: $JUMP_SG"
-          if [ -z "$EKS_SG" ] || [ -z "$JUMP_SG" ] || [ "$EKS_SG" = "None" ] || [ "$JUMP_SG" = "None" ]; then
-            echo "Could not resolve SG IDs — skipping import"
-            exit 0
-          fi
           RULE_ID=$(aws ec2 describe-security-group-rules \
             --filters "Name=group-id,Values=${EKS_SG}" \
                       "Name=ip-permission.from-port,Values=443" \
@@ -145,16 +140,14 @@ jobs:
                       "Name=ip-permission.protocol,Values=tcp" \
             --query "SecurityGroupRules[?ReferencedGroupInfo.GroupId=='${JUMP_SG}'].SecurityGroupRuleId" \
             --output text --region us-east-1 2>/dev/null || true)
-          echo "Found rule ID: $RULE_ID"
           if [ -n "$RULE_ID" ] && [ "$RULE_ID" != "None" ]; then
-            echo "Importing $RULE_ID into state"
-            cd ${{ env.TF_WORKING_DIR }}
-            terraform import \
-              -var-file=dev.tfvars \
-              aws_vpc_security_group_ingress_rule.jump_to_eks_api \
-              "$RULE_ID"
+            echo "SG rule already exists ($RULE_ID) — nothing to do"
           else
-            echo "No existing SG rule found — Terraform will create it"
+            echo "Creating SG rule: $JUMP_SG -> $EKS_SG :443"
+            aws ec2 authorize-security-group-ingress \
+              --group-id "$EKS_SG" \
+              --ip-permissions "[{\"IpProtocol\":\"tcp\",\"FromPort\":443,\"ToPort\":443,\"UserIdGroupPairs\":[{\"GroupId\":\"${JUMP_SG}\",\"Description\":\"Allow jump server to access EKS API\"}]}]" \
+              --region us-east-1
           fi
 
       - name: Terraform Apply
