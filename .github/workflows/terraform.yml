@@ -128,7 +128,7 @@ jobs:
             --query "cluster.resourcesVpcConfig.clusterSecurityGroupId" \
             --output text)
           JUMP_SG=$(aws ec2 describe-instances \
-            --filters "Name=tag:Name,Values=cs365-eks-cluster-jump" \
+            --filters "Name=tag:Name,Values=cs365-eks-cluster-jump-server" \
                       "Name=instance-state-name,Values=running,stopped" \
             --query "Reservations[0].Instances[0].SecurityGroups[0].GroupId" \
             --output text --region us-east-1)
