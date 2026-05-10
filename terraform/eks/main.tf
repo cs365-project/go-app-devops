@@ -2,16 +2,6 @@ provider "aws" {
   region = var.aws_region
 }
 
-provider "kubernetes" {
-  host                   = module.eks.cluster_endpoint
-  cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
-
-  exec {
-    api_version = "client.authentication.k8s.io/v1beta1"
-    command     = "aws"
-    args        = ["eks", "get-token", "--cluster-name", var.cluster_name, "--region", var.aws_region]
-  }
-}
 
 module "vpc" {
   source = "../modules/vpc"
@@ -68,30 +58,3 @@ resource "aws_security_group_rule" "jump_to_eks_api" {
   depends_on = [module.eks, module.jump_server]
 }
 
-# Patch aws-auth configmap to grant LabRole (EC2 instance profile) cluster-admin access
-# This allows kubectl to work from the jump server without manual intervention
-data "aws_iam_role" "lab_role" {
-  name = "LabRole"
-}
-
-resource "kubernetes_config_map_v1_data" "aws_auth" {
-  metadata {
-    name      = "aws-auth"
-    namespace = "kube-system"
-  }
-
-  data = {
-    mapRoles = yamlencode([
-      {
-        rolearn  = data.aws_iam_role.lab_role.arn
-        username = "admin"
-        groups   = ["system:masters"]
-      }
-    ])
-  }
-
-  # force = true allows merging with existing entries (node role added by EKS automatically)
-  force = true
-
-  depends_on = [module.eks]
-}

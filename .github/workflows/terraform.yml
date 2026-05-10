@@ -90,7 +90,7 @@ jobs:
 
       - name: Terraform Init
         id: init
-        run: terraform init
+        run: terraform init -upgrade
 
       - name: Terraform Validate
         id: validate
@@ -158,6 +158,26 @@ jobs:
           aws eks update-kubeconfig \
             --region ${{ env.AWS_REGION }} \
             --name cs365-eks-cluster
+
+      - name: Patch aws-auth (add LabRole as cluster-admin)
+        run: |
+          LAB_ROLE_ARN=$(aws iam get-role --role-name LabRole --query "Role.Arn" --output text)
+          NODE_ROLE_ARN=$(aws iam list-roles --query "Roles[?contains(RoleName, 'LabEksNodeRole')].Arn | [0]" --output text)
+          kubectl patch configmap aws-auth -n kube-system --patch "$(cat <<EOF
+          data:
+            mapRoles: |
+              - rolearn: ${NODE_ROLE_ARN}
+                username: system:node:{{EC2PrivateDNSName}}
+                groups:
+                  - system:bootstrappers
+                  - system:nodes
+              - rolearn: ${LAB_ROLE_ARN}
+                username: admin
+                groups:
+                  - system:masters
+          EOF
+          )"
+          echo "aws-auth patched with LabRole: ${LAB_ROLE_ARN}"
 
       - name: Install Nginx Ingress Controller
         run: |
