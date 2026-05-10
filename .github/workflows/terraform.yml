@@ -120,6 +120,27 @@ jobs:
               body: output
             })
 
+      - name: Import existing SG rule (idempotent)
+        if: github.event.inputs.action == 'apply'
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          RULE_ID=$(aws ec2 describe-security-group-rules \
+            --filters "Name=group-id,Values=sg-0f8b1f0f7ad854976" \
+                      "Name=ip-permission.from-port,Values=443" \
+                      "Name=ip-permission.to-port,Values=443" \
+                      "Name=ip-permission.protocol,Values=tcp" \
+            --query "SecurityGroupRules[?ReferencedGroupInfo.GroupId=='sg-06878c16ab49c9e6c'].SecurityGroupRuleId" \
+            --output text --region us-east-1 2>/dev/null || true)
+          if [ -n "$RULE_ID" ]; then
+            echo "Found existing SG rule $RULE_ID — importing into state"
+            terraform import \
+              -var-file=dev.tfvars \
+              aws_security_group_rule.jump_to_eks_api \
+              "sg-0f8b1f0f7ad854976_ingress_tcp_443_443_sg-06878c16ab49c9e6c" || true
+          else
+            echo "No existing SG rule found — Terraform will create it"
+          fi
+
       - name: Terraform Apply
         id: apply
         if: github.event.inputs.action == 'apply'
