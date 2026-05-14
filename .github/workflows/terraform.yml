@@ -127,7 +127,7 @@ jobs:
           EKS_SG=$(aws eks describe-cluster \
             --name cs365-eks-cluster --region us-east-1 \
             --query "cluster.resourcesVpcConfig.clusterSecurityGroupId" \
-            --output text)
+            --output text 2>/dev/null || echo "")
           JUMP_SG=$(aws ec2 describe-instances \
             --filters "Name=tag:Name,Values=cs365-eks-cluster-jump-server" \
                       "Name=instance-state-name,Values=running,stopped" \
